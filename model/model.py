@@ -1,4 +1,5 @@
 from database.impianto_DAO import ImpiantoDAO
+from database.consumo_DAO  import ConsumoDAO
 
 '''
     MODELLO:
@@ -25,7 +26,29 @@ class Model:
         :param mese: Mese selezionato (un intero da 1 a 12)
         :return: lista di tuple --> (nome dell'impianto, media), es. (Impianto A, 123)
         """
-        # TODO
+
+        lista_tuple = []
+
+        for impianto in self._impianti:
+            somma_consumi = 0
+            self.consumi_impianto = ConsumoDAO.get_consumi(impianto.id)
+            counter_giorni = 0
+            for consumo in self.consumi_impianto:
+                #counter_giorni = 0
+                if consumo.data.month == mese:
+                    counter_giorni += 1
+                    somma_consumi += int(consumo.kwh)
+
+                else:
+                    somma_consumi = somma_consumi
+                    counter_giorni += 0
+
+                tupla = (impianto.nome, somma_consumi/counter_giorni)
+
+            lista_tuple.append(tupla)
+
+        return lista_tuple
+
 
     def get_sequenza_ottima(self, mese:int):
         """
@@ -53,5 +76,18 @@ class Model:
         Restituisce i consumi dei primi 7 giorni del mese selezionato per ciascun impianto.
         :return: un dizionario: {id_impianto: [kwh_giorno1, ..., kwh_giorno7]}
         """
-        # TODO
+
+        consumi_settimana = {}
+
+        for impianto in self._impianti:
+            consumi = ConsumoDAO.get_consumi(impianto.id)
+            valori_prima_settimana = []
+
+            for consumo in consumi:
+                if consumo.data.month == mese and consumo.data.day in range(1,8):
+
+                    valori_prima_settimana.append(consumo.kwh)
+                    consumi_settimana[impianto.id] = valori_prima_settimana
+
+        return consumi_settimana
 

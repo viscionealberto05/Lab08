@@ -10,7 +10,7 @@ from database.consumo_DAO  import ConsumoDAO
 
 class Model:
     def __init__(self):
-        self._impianti = None
+        self._impianti = None   #la lista degli impianti viene inizializzata vuota e riempita con load_impianti()
         self.load_impianti()
 
         self.__sequenza_ottima = []
@@ -18,6 +18,9 @@ class Model:
 
     def load_impianti(self):
         """ Carica tutti gli impianti e li setta nella variabile self._impianti """
+
+        #Uso una query SQL per leggere gli impianti, la classe DTO associata mi permette di creare l'oggetto impianto
+
         self._impianti = ImpiantoDAO.get_impianti()
 
     def get_consumo_medio(self, mese:int):
@@ -28,6 +31,11 @@ class Model:
         """
 
         lista_tuple = []
+
+        #Per ciascun impianto vado a vedere i consumi all'interno del mese selezionato dall'utente
+        #aggiorno un contatore per i giorni così da poter calcolare la media alla fine,
+        #concludo restituendo una lista con le tuple, che saranno una per ciascun impianto,
+        #legate al consumo medio mensile dello stesso
 
         for impianto in self._impianti:
             somma_consumi = 0
@@ -67,41 +75,49 @@ class Model:
 
     def __ricorsione(self, sequenza_parziale, giorno, ultimo_impianto, costo_corrente, consumi_settimana):
         """ Implementa la ricorsione """
-        # TODO
 
-        if giorno > 7 :
+        """Mediante un algoritmo ricorsivo vado prima a definire la condizione di escape che mi permette di uscire
+        che in questo caso dipende dal giorno della settimana, oltre il settimo mi fermo.
+        
+        finchè mi trovo nella prima settimana vado a leggere per entrambi gli impianti i consumi e aggiornare
+        il costo corrente, aggiungo solo alla fine l'id dell'impianto col consumo minore perchè prima verifico
+        se è necessario sommare il costo di trasferimento da un impianto all'altro. Per effettuare questo controllo mi 
+        serve la sequenza parziale ricevuta dalla chiamata precedente, altrimenti non sommerei mai 5.
+        
+        Dopo aver effettuato la verifica aggiorno la sequenza parziale, incremento il giorno (siccome la funz. ricorsiva
+        opera sui singoli giorni) e poi richiamo la ricorsione"""
+
+        if giorno > 7:
             self.__costo_ottimo = costo_corrente
-            self.__sequenza_ottima = list (sequenza_parziale)
+            self.__sequenza_ottima = sequenza_parziale
 
-        else :
-            id_impianto1 = self._impianti[0].id
-            id_impianto2 = self._impianti[1].id
+        else:
+            id_primo_impianto = self._impianti[0].id
+            id_secondo_impianto = self._impianti[1].id
 
-            #Prendo i consumi in KW dal dizionario per i consumi settimanali
-            #Accedendo al valore specificando prima chiave del dizionario (id_impianto) e poi
-            #indice per prendere il giorno sulla lista associata alla chiave
+            consumi_primo_impianto = consumi_settimana[id_primo_impianto][giorno-1]
+            consumi_secondo_impianto = consumi_settimana[id_secondo_impianto][giorno-1]
 
-            consumo_impianto1 = consumi_settimana [id_impianto1] [giorno-1]
-            consumo_impianto2 = consumi_settimana [id_impianto2] [giorno-1]
+            if consumi_primo_impianto < consumi_secondo_impianto:
+                costo_corrente += consumi_primo_impianto
+                #sequenza_parziale.append(id_primo_impianto)
+                imp_nuovo = id_primo_impianto
+                ultimo_impianto = id_primo_impianto
+            else:
+                costo_corrente += consumi_secondo_impianto
+                #sequenza_parziale.append(id_secondo_impianto)
+                imp_nuovo = id_secondo_impianto
+                ultimo_impianto = id_secondo_impianto
 
-            if consumo_impianto1 <= consumo_impianto2 :
-                id_scelto = id_impianto2
-                consumo_scelto = consumo_impianto1
-            else :
-                id_scelto = id_impianto1
-                consumo_scelto = consumo_impianto2
+            if len(sequenza_parziale) > 0:
+                if ultimo_impianto != sequenza_parziale[-1]:
+                    costo_corrente += 5
 
-            costo_corrente += consumo_scelto
+            sequenza_parziale.append(imp_nuovo)
 
-            if ultimo_impianto is not None and ultimo_impianto != id_scelto :
-                costo_corrente += (consumo_scelto + 5)
-
-            sequenza_parziale.append (id_scelto)
-            ultimo_impianto = id_scelto
             giorno += 1
 
-            self.__ricorsione (sequenza_parziale, giorno, ultimo_impianto, costo_corrente, consumi_settimana)
-
+            self.__ricorsione(sequenza_parziale,giorno,ultimo_impianto,costo_corrente,consumi_settimana)
 
 
     def __get_consumi_prima_settimana_mese(self, mese: int):
